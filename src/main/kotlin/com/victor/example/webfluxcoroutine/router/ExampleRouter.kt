@@ -13,9 +13,9 @@ class ExampleRouter(
     @Bean(name = ["authRouterFunction"])
     fun route() = router {
         ("/api" and accept(MediaType.APPLICATION_JSON)).nest {
-            ("/auth").nest {
-                POST("/v1/request-auth", exampleHandler::requestAuth)
-                POST("/v1/confirm-auth", exampleHandler::confirmAuth)
+            ("/example").nest {
+                POST("/v1/request", exampleHandler::requestAuth)
+                POST("/v1/confirm", exampleHandler::confirmAuth)
             }
         }
     }
