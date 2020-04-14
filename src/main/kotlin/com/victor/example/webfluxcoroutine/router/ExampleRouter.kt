@@ -10,7 +10,7 @@ import org.springframework.web.reactive.function.server.router
 class ExampleRouter(
         val exampleHandler: ExampleHandler) {
 
-    @Bean(name = ["authRouterFunction"])
+    @Bean(name = ["routerFunction"])
     fun route() = router {
         ("/api" and accept(MediaType.APPLICATION_JSON)).nest {
             ("/example").nest {
