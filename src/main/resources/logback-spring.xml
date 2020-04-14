@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- 로그 파일명 -->
+    <property name="LOG_FILE" value="${application.log.path:-logs}"/>
+    <property name="FILE_LOG_PATTERN" value="[%clr(%-5level):%X{REQUEST_CUSTOM_ID}] [${HOSTNAME}:%d{yyyy-MM-dd HH:mm:ss.SSS}] [%thread] [%logger{5}:%method:%L] %msg%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}" />
+    <springProperty scope="context" name="port" source="server.port"/>
+    <appender name="appAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${application.log.dir:-logs}/application_${port:-default}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${application.log.dir:-logs}/application_${port:-default}.log.%i.%d{yyyy-MM-dd}.gz</fileNamePattern>
+            <maxFileSize>500MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="apiLatency" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${application.log.dir:-logs}/json_api_latency.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${application.log.dir:-logs}/json_api_latency.log.%i.%d{yyyy-MM-dd}.gz</fileNamePattern>
+            <maxFileSize>500MB</maxFileSize>
+            <maxHistory>10</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%m%n</pattern>
+        </encoder>
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
+                <marker>API_LATENCY</marker>
+            </evaluator>
+
+            <OnMatch>ACCEPT</OnMatch>
+            <OnMismatch>DENY</OnMismatch>
+        </filter>
+    </appender>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org.springframework.boot.actuate.endpoint" level="INFO" />
+    <logger name="com.victor.example.webfluxcoroutine.router.LoggingFilter" level="INFO" additivity="false">
+        <appender-ref ref="apiLatency"/>
+    </logger>
+
+    <springProfile name="default">
+        <logger name="org.hibernate.type" level="DEBUG" />
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="appAppender"/>
+        </root>
+        <logger name="org.redisson.client.handler" level="INFO"/>
+        <logger name="com.netflix.discovery" level="INFO" />
+        <logger name="io.reactivex.netty.protocol.http" level="INFO" />
+        <logger name="io.reactivex.netty.protocol.http.server.HttpServer" level="INFO" />
+    </springProfile>
+
+    <springProfile name="dev">
+        <logger name="org.hibernate.type" level="DEBUG" />
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>
