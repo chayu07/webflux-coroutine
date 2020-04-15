@@ -48,3 +48,4 @@ fun ServerRequest.getHeaderOrEmptyString(headerName: String): String =
  * 308은 안드로이드 킷켓에서 리다이렉트가 제대로 동작하지 않음. 그래서 307로 변경함. 308로 변경하지 말것!
  */
 fun redirect(uri: String): Mono<ServerResponse> = ServerResponse.temporaryRedirect(URI.create(uri)).build()
+fun redirectBuilder(uri: String): ServerResponse.BodyBuilder = ServerResponse.temporaryRedirect(URI.create(uri))

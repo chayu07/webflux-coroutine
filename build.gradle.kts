@@ -67,7 +67,6 @@ tasks.named<Jar>("jar") {
 }
 
 repositories {
-    maven(url = "http://repo.spring.io/milestone")
     maven(url = "https://repo.spring.io/release")
     mavenCentral()
     jcenter()

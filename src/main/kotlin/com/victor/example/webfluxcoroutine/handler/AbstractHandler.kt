@@ -1,18 +1,21 @@
 package com.victor.example.webfluxcoroutine.handler
 
 
+import com.victor.example.kotlinx.redirectBuilder
 import com.victor.example.webfluxcoroutine.code.ErrorCd
 import com.victor.example.webfluxcoroutine.exception.ApiException
 import com.victor.example.kotlinx.toPrettyFormat
-import com.victor.example.kotlinx.userAgent
 import com.victor.example.webfluxcoroutine.model.ErrorResponse
 import com.victor.example.webfluxcoroutine.model.HeaderInfo
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.reactive.awaitSingle
 import org.apache.logging.log4j.LogManager
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.ResponseCookie
+import org.springframework.util.MultiValueMap
 import org.springframework.web.reactive.function.BodyInserters.fromValue
-import org.springframework.web.reactive.function.server.ServerRequest
-import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.reactive.function.server.*
 import reactor.core.publisher.Mono
 
 open class ErrorHandler {
@@ -46,15 +49,6 @@ open class ErrorHandler {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValueAndAwait(errorResponse.second)
     }
-
-    fun handleException(e: Throwable, serverRequest: ServerRequest, defaultErrorCd: ErrorCd = ErrorCd.INTERNAL_ERROR): Mono<ServerResponse> {
-        val errorResponse = handle(e, serverRequest, defaultErrorCd)
-        return ServerResponse
-                .status(errorResponse.first)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(fromValue(errorResponse.second))
-    }
-
 }
 
 open class LoggingHandler {
@@ -129,9 +123,18 @@ open class LoggingAndErrorHandler {
 }
 
 abstract class AbstractCoHandler : LoggingAndErrorHandler() {
+    data class RenderContext(val resourceName: String, val model: Map<String, Any> = mapOf(),
+                             var cookieData: String? = "", var alreadyCookieExist: Boolean = false, var cookie: ResponseCookie? = null,
+                             var redirect: Boolean = false, val headers: Map<String, String> = mapOf()) {
+        companion object {
+            fun redirect(redirectUrl: String): RenderContext = RenderContext(resourceName = redirectUrl, redirect = true)
+        }
+    }
+
+
     protected suspend inline fun renderOrRedirectWithFormDataAndPathVariableAndHeaderInfo(
             serverRequest: ServerRequest,
-            crossinline f: suspend (body: MultiValueMap<String, String>, pathVariables: Map<String, String>, headerInfo: HeaderInfo) -> AbstractHandler.RenderContext): ServerResponse {
+            crossinline f: suspend (body: MultiValueMap<String, String>, pathVariables: Map<String, String>, headerInfo: HeaderInfo) -> RenderContext): ServerResponse {
         return coroutineScope {
             try {
                 logRequest(serverRequest)
@@ -163,7 +166,7 @@ abstract class AbstractCoHandler : LoggingAndErrorHandler() {
 
     protected suspend fun renderOrRedirectWithPathVariableAndHeaderInfo(
             serverRequest: ServerRequest,
-            f: suspend (Map<String, String>, headerInfo: HeaderInfo) -> AbstractHandler.RenderContext): ServerResponse {
+            f: suspend (Map<String, String>, headerInfo: HeaderInfo) -> RenderContext): ServerResponse {
         return coroutineScope {
             try {
                 logRequest(serverRequest)
@@ -190,25 +193,14 @@ abstract class AbstractCoHandler : LoggingAndErrorHandler() {
         }
     }
 
-    protected inline suspend fun <reified Req, Res> handleWithRequestBody(serverRequest: ServerRequest,
-                                                                  crossinline f: (Req) -> Mono<Res>): ServerResponse {
-        try {
-            logRequest(serverRequest)
-            val body = serverRequest.bodyToMono(Req::class.java)
-            val res = f(body)
-            ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(res)
-                    .doOnNext { logResponse(serverRequest, it, res) }.awaitSingle()
-        } catch (e: Exception) {
-            coHandleException(e, serverRequest)
-        }
-    }
-
-    protected suspend fun <Res> handleWithHeaderInfo(serverRequest: ServerRequest, f: suspend (HeaderInfo) -> Res): ServerResponse {
+    protected suspend inline fun <reified Req, Res> handleWithRequestBody(serverRequest: ServerRequest,
+                                                                          crossinline f: suspend (Req) -> Res): ServerResponse {
         return coroutineScope {
             try {
                 logRequest(serverRequest)
-                val res = f(HeaderInfo.of(serverRequest))
-                ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(res)
+                val body = serverRequest.bodyToMono(Req::class.java).awaitSingle()
+                val res: Res = f(body)
+                ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(res!!)
                         .doOnNext { logResponse(serverRequest, it, res) }.awaitSingle()
             } catch (e: Exception) {
                 coHandleException(e, serverRequest)
@@ -224,8 +216,8 @@ abstract class AbstractCoHandler : LoggingAndErrorHandler() {
         return coroutineScope {
             try {
                 logRequest(serverRequest)
-                val res: RES = f(param, payAccount)
-                ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(res)
+                val res: RES = f(param)
+                ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(res!!)
                         .doOnNext { logResponse(serverRequest, it, res) }.awaitSingle()
             } catch (e: Exception) {
                 coHandleException(e, serverRequest)
