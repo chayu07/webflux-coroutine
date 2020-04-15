@@ -5,7 +5,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 
 data class HeaderInfo(val userAgent: String) {
     companion object {
-        private const val HEADER_USER_AGENT = "User-Agent"
+        const val HEADER_USER_AGENT = "User-Agent"
         @JvmStatic
         fun of(req: ServerRequest): HeaderInfo =
                 HeaderInfo(

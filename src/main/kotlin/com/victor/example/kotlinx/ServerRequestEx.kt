@@ -1,8 +1,8 @@
 package com.victor.example.kotlinx
 
-import com.victor.example.webfluxcoroutine.*
 import com.victor.example.webfluxcoroutine.code.ErrorCd
 import com.victor.example.webfluxcoroutine.exception.ApiException
+import com.victor.example.webfluxcoroutine.model.HeaderInfo.Companion.HEADER_USER_AGENT
 import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseCookie
 import org.springframework.util.MultiValueMap
