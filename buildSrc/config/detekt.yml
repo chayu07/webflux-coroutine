@@ -1,0 +1,38 @@
+build:
+  maxIssues: 50
+
+config:
+  validation: true
+performance:
+  active: true
+  SpreadOperator:
+    active: true
+    excludes: '**/Application.kt'
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
+    exceptionNames:
+      - ArrayIndexOutOfBoundsException
+      - Error
+      - Exception
+      - NullPointerException
+      - IndexOutOfBoundsException
+      - RuntimeException
+      - Throwable
+
+style:
+  WildcardImport:
+    active: false
+  MagicNumber:
+    active: true
+    ignoreNumbers: '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20'
+    ignoreEnums: true
+  NewLineAtEndOfFile:
+    active: false
+  MaxLineLength:
+    active: true
+    maxLineLength: 200
+    excludePackageStatements: true
+    excludeImportStatements: true
+    excludeCommentStatements: true

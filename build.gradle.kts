@@ -1,3 +1,4 @@
+import io.gitlab.arturbosch.detekt.Detekt
 import io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.springframework.boot.gradle.tasks.bundling.BootJar
@@ -15,6 +16,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.noarg") version Versions.Plugins.kotlin
     id("org.springframework.boot") version Versions.Plugins.springboot
     id("io.spring.dependency-management") version Versions.Plugins.dependencyManagement
+    id("io.gitlab.arturbosch.detekt").version(Versions.Plugins.detekt)
 }
 
 group = "${Release.group}${Release.name}"
@@ -37,6 +39,25 @@ tasks.named<BootJar>("bootJar") {
 tasks.named<Jar>("jar") {
     manifest {
         attributes["Main-Class"] = "com.victor.example.webfluxcoroutine.Application"
+    }
+}
+
+tasks {
+    withType<Detekt> {
+        this.jvmTarget = "1.8"
+    }
+}
+
+detekt {
+    failFast = true // fail build on any finding
+    buildUponDefaultConfig = true // preconfigure defaults
+    config = files("$projectDir/buildSrc/config/detekt.yml") // point to your custom config defining rules to run, overwriting default behavior
+//    baseline = file("$projectDir/config/baseline.xml") // a way of suppressing issues before introducing detekt
+
+    reports {
+        html.enabled = false // observe findings in your browser with structure and code snippets
+        xml.enabled = true // checkstyle like format mainly for integrations like Jenkins
+        txt.enabled = true // similar to the console output, contains issue signature to manually edit baseline files
     }
 }
 

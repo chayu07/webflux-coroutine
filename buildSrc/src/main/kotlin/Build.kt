@@ -6,9 +6,10 @@ object Release {
 
 object Versions {
     object Plugins {
-        const val kotlin = "1.3.50"
+        const val kotlin = "1.3.71"
         const val springboot = "2.2.0.RELEASE"
         const val dependencyManagement = "1.0.7.RELEASE"
+        const val detekt = "1.7.4"
     }
 
     const val resilience4j = "1.1.0"

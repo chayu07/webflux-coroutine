@@ -114,7 +114,8 @@ open class LoggingAndErrorHandler {
     private val loggingHandler: LoggingHandler = LoggingHandler()
     private val avoidEmptyResponseHandler: AvoidEmptyResponseHandler = AvoidEmptyResponseHandler()
 
-    suspend fun coHandleException(e: Throwable, serverRequest: ServerRequest, defaultErrorCd: ErrorCd = ErrorCd.INTERNAL_ERROR): ServerResponse = errorHandler.coHandleException(e, serverRequest, defaultErrorCd)
+    suspend fun coHandleException(e: Throwable, serverRequest: ServerRequest, defaultErrorCd: ErrorCd = ErrorCd.INTERNAL_ERROR): ServerResponse =
+            errorHandler.coHandleException(e, serverRequest, defaultErrorCd)
     fun logRequest(serverRequest: ServerRequest) = loggingHandler.logRequest(serverRequest)
     fun logResponse(serverResponse: ServerResponse) = loggingHandler.logResponse(serverResponse)
     fun <Res> logResponse(serverRequest: ServerRequest, serverResponse: ServerResponse, body: Res) = loggingHandler.logResponse(serverRequest, serverResponse, body)

@@ -16,7 +16,8 @@ fun confirmedRequest(): Mono<Unit> = Unit.toMono()
 
 fun <T> emptyOptionalMono(): Mono<Optional<T>> = Optional.empty<T>().toMono()
 
-fun <T> Mono<T>.retryExponentialBackoffEx(times: Long, delay: Duration, maxDelay: Duration? = null, doOnRetry: ((RetryContext<T>) -> Unit)? = null): Mono<T> {
+fun <T> Mono<T>.retryExponentialBackoffEx(times: Long, delay: Duration, maxDelay: Duration? = null
+                                          , doOnRetry: ((RetryContext<T>) -> Unit)? = null): Mono<T> {
     return this.retryExponentialBackoff(times, delay, maxDelay, doOnRetry = doOnRetry).toMono()
 }
 
