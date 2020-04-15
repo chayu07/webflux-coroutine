@@ -10,7 +10,7 @@ import org.springframework.web.reactive.function.server.coRouter
 class ExampleRouter(
         val exampleHandler: ExampleHandler) {
 
-    @Bean(name = ["exampleRouter"])
+    @Bean(name = ["example"])
     fun route() = coRouter {
         ("/api" and accept(MediaType.APPLICATION_JSON)).nest {
             ("/example").nest {

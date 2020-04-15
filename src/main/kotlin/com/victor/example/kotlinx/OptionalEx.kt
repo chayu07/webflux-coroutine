@@ -1,6 +1,5 @@
 package com.victor.example.kotlinx
 
-import com.victor.example.webfluxcoroutine.EMPTY_STRING
 import com.victor.example.webfluxcoroutine.code.ErrorCd
 import com.victor.example.webfluxcoroutine.exception.ApiException
 import reactor.core.publisher.Mono
@@ -17,7 +16,7 @@ fun <T> Optional<T>.errorIfEmpty(): Mono<T> {
 }
 
 fun Optional<String>.orEmptyString(): String =
-        this.orElse(EMPTY_STRING)
+        this.orElse("")
 
 fun <T> Optional<T>.orEmptyMono(): Mono<Optional<T>> {
     return if (this.isPresent) {
