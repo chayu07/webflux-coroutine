@@ -1,7 +1,7 @@
 
 Spring Webflux with Coroutine of Kotlin Sample
 =
-[![CircleCI](https://circleci.com/gh/chayu07/webflux-coroutine/tree/circleci-project-setup.svg?style=svg)](https://circleci.com/gh/chayu07/webflux-coroutine/tree/circleci-project-setup)
+[![CircleCI](https://circleci.com/gh/chayu07/webflux-coroutine/tree/master.svg?style=svg)](https://circleci.com/gh/chayu07/webflux-coroutine/tree/master)
 [![Kotlin Version](https://img.shields.io/badge/kotlin-1.3.71-blue.svg)](http://kotlinlang.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
