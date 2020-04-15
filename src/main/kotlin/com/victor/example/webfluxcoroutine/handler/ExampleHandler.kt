@@ -8,17 +8,17 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.toMono
 
 @Service
-class ExampleHandler : AbstractHandler() {
+class ExampleHandler : AbstractCoHandler() {
 
-    fun requestAuth(req: ServerRequest): Mono<ServerResponse> {
+    suspend fun requestAuth(req: ServerRequest): ServerResponse {
         return handleWithRequestBody(req) { req: String ->
-            "".toMono()
-        }.onErrorResume { handleException(it, req, ErrorCd.INTERNAL_ERROR) }
+            ""
+        }
     }
 
-    fun confirmAuth(req: ServerRequest): Mono<ServerResponse> {
+    suspend fun confirmAuth(req: ServerRequest): ServerResponse {
         return handleWithRequestBody(req) { req: String ->
-            "".toMono()
-        }.onErrorResume { handleException(it, req, ErrorCd.INTERNAL_ERROR) }
+            ""
+        }
     }
 }

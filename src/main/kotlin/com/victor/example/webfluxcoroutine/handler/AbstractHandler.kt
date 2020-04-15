@@ -15,25 +15,10 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
-abstract class AbstractHandler {
-
+open class ErrorHandler {
     private val log = LogManager.getLogger()!!
 
-    protected inline fun <reified Req, Res> handleWithRequestBody(serverRequest: ServerRequest,
-                                                                  crossinline f: (Req) -> Mono<Res>): Mono<ServerResponse> {
-        logRequest(serverRequest)
-        return serverRequest.bodyToMono(Req::class.java)
-                .flatMap { req -> f(req) }
-                .flatMap { res ->
-                    ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(fromValue(res))
-                            .doOnNext { logResponse(serverRequest, it, res) }
-                }
-                .onErrorResume { e -> this.handleException(e, serverRequest) }
-                .switchIfEmpty(avoidEmptyResponse())
-
-    }
-
-    protected fun handleException(e: Throwable, serverRequest: ServerRequest, defaultErrorCd: ErrorCd = ErrorCd.INTERNAL_ERROR): Mono<ServerResponse> {
+    private fun handle(e: Throwable, serverRequest: ServerRequest, defaultErrorCd: ErrorCd = ErrorCd.INTERNAL_ERROR): Pair<Int, ErrorResponse> {
         log.warn("Fail to handle ${serverRequest.uri()}", e)
         return when (e) {
             is ApiException -> {
@@ -44,30 +29,36 @@ abstract class AbstractHandler {
                 }
 
                 log.debug("Handling ${e.javaClass.name} Responding with $errorResponse")
-                ServerResponse
-                        .status(e.errorCd.statusCode)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(fromValue(errorResponse))
+                Pair(e.errorCd.statusCode, errorResponse)
             }
             else -> {
                 val errorResponse = ErrorResponse(errorCd = defaultErrorCd)
                 log.debug("Handling ${e.javaClass.name} Responding with $errorResponse")
-                ServerResponse
-                        .status(defaultErrorCd.statusCode)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(fromValue(errorResponse))
+                Pair(defaultErrorCd.statusCode, errorResponse)
             }
         }
     }
 
-    protected fun avoidEmptyResponse(): Mono<ServerResponse> = ServerResponse
-            .status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(
-                    fromValue(ErrorResponse(ErrorCd.INTERNAL_ERROR))
-            )
+    suspend fun coHandleException(e: Throwable, serverRequest: ServerRequest, defaultErrorCd: ErrorCd = ErrorCd.INTERNAL_ERROR): ServerResponse {
+        val errorResponse = handle(e, serverRequest, defaultErrorCd)
+        return ServerResponse
+                .status(errorResponse.first)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValueAndAwait(errorResponse.second)
+    }
 
+    fun handleException(e: Throwable, serverRequest: ServerRequest, defaultErrorCd: ErrorCd = ErrorCd.INTERNAL_ERROR): Mono<ServerResponse> {
+        val errorResponse = handle(e, serverRequest, defaultErrorCd)
+        return ServerResponse
+                .status(errorResponse.first)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(fromValue(errorResponse.second))
+    }
 
+}
+
+open class LoggingHandler {
+    private val log = LogManager.getLogger()!!
     fun logRequest(serverRequest: ServerRequest) {
         log.info("""
             |Handling Request ========================================
@@ -112,6 +103,134 @@ abstract class AbstractHandler {
             |========================================
         """.trimMargin())
     }
+}
 
+open class AvoidEmptyResponseHandler {
+
+    fun avoidEmptyResponse(): Mono<ServerResponse> = ServerResponse
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(
+                    fromValue(ErrorResponse(ErrorCd.INTERNAL_ERROR))
+            )
+}
+
+open class LoggingAndErrorHandler {
+    private val errorHandler: ErrorHandler = ErrorHandler()
+    private val loggingHandler: LoggingHandler = LoggingHandler()
+    private val avoidEmptyResponseHandler: AvoidEmptyResponseHandler = AvoidEmptyResponseHandler()
+
+    suspend fun coHandleException(e: Throwable, serverRequest: ServerRequest, defaultErrorCd: ErrorCd = ErrorCd.INTERNAL_ERROR): ServerResponse = errorHandler.coHandleException(e, serverRequest, defaultErrorCd)
+    fun logRequest(serverRequest: ServerRequest) = loggingHandler.logRequest(serverRequest)
+    fun logResponse(serverResponse: ServerResponse) = loggingHandler.logResponse(serverResponse)
+    fun <Res> logResponse(serverRequest: ServerRequest, serverResponse: ServerResponse, body: Res) = loggingHandler.logResponse(serverRequest, serverResponse, body)
+
+    fun avoidEmptyResponse(): Mono<ServerResponse> = avoidEmptyResponseHandler.avoidEmptyResponse()
+}
+
+abstract class AbstractCoHandler : LoggingAndErrorHandler() {
+    protected suspend inline fun renderOrRedirectWithFormDataAndPathVariableAndHeaderInfo(
+            serverRequest: ServerRequest,
+            crossinline f: suspend (body: MultiValueMap<String, String>, pathVariables: Map<String, String>, headerInfo: HeaderInfo) -> AbstractHandler.RenderContext): ServerResponse {
+        return coroutineScope {
+            try {
+                logRequest(serverRequest)
+                val context = f(serverRequest.formData().awaitSingle(), serverRequest.pathVariables(), HeaderInfo.of(serverRequest))
+                if (context.redirect) {
+                    val builder = redirectBuilder(context.resourceName)
+                    context.headers.forEach {
+                        builder.header(it.key, it.value)
+                    }
+                    val serverResponse = builder.buildAndAwait()
+                    logResponse(serverResponse)
+                    serverResponse
+                } else {
+                    val builder = RenderingResponse.create(context.resourceName)
+                            .modelAttributes(context.model)
+                    context.headers.forEach {
+                        builder.header(it.key, it.value)
+                    }
+
+                    val renderingResponse = builder.buildAndAwait()
+                    logResponse(renderingResponse)
+                    renderingResponse
+                }
+            } catch (e: Exception) {
+                coHandleException(e, serverRequest)
+            }
+        }
+    }
+
+    protected suspend fun renderOrRedirectWithPathVariableAndHeaderInfo(
+            serverRequest: ServerRequest,
+            f: suspend (Map<String, String>, headerInfo: HeaderInfo) -> AbstractHandler.RenderContext): ServerResponse {
+        return coroutineScope {
+            try {
+                logRequest(serverRequest)
+                val context = f(serverRequest.pathVariables(), HeaderInfo.of(serverRequest))
+                if (context.redirect) {
+                    val builder = redirectBuilder(context.resourceName)
+                    context.headers.forEach {
+                        builder.header(it.key, it.value)
+                    }
+                    val serverResponse = builder.buildAndAwait()
+                    logResponse(serverResponse)
+                    serverResponse
+                } else {
+                    val builder = RenderingResponse.create(context.resourceName)
+                            .modelAttributes(context.model)
+                    context.headers.forEach {
+                        builder.header(it.key, it.value)
+                    }
+                    builder.buildAndAwait()
+                }
+            } catch (e: Exception) {
+                coHandleException(e, serverRequest)
+            }
+        }
+    }
+
+    protected inline suspend fun <reified Req, Res> handleWithRequestBody(serverRequest: ServerRequest,
+                                                                  crossinline f: (Req) -> Mono<Res>): ServerResponse {
+        try {
+            logRequest(serverRequest)
+            val body = serverRequest.bodyToMono(Req::class.java)
+            val res = f(body)
+            ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(res)
+                    .doOnNext { logResponse(serverRequest, it, res) }.awaitSingle()
+        } catch (e: Exception) {
+            coHandleException(e, serverRequest)
+        }
+    }
+
+    protected suspend fun <Res> handleWithHeaderInfo(serverRequest: ServerRequest, f: suspend (HeaderInfo) -> Res): ServerResponse {
+        return coroutineScope {
+            try {
+                logRequest(serverRequest)
+                val res = f(HeaderInfo.of(serverRequest))
+                ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(res)
+                        .doOnNext { logResponse(serverRequest, it, res) }.awaitSingle()
+            } catch (e: Exception) {
+                coHandleException(e, serverRequest)
+            }
+        }
+    }
+
+    protected suspend fun <RES> handleWithQueryParams(
+            serverRequest: ServerRequest,
+            param: Map<String, Any>,
+            f: suspend (Map<String, Any>) -> RES): ServerResponse {
+
+        return coroutineScope {
+            try {
+                logRequest(serverRequest)
+                val res: RES = f(param, payAccount)
+                ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(res)
+                        .doOnNext { logResponse(serverRequest, it, res) }.awaitSingle()
+            } catch (e: Exception) {
+                coHandleException(e, serverRequest)
+            }
+        }
+    }
 }
 

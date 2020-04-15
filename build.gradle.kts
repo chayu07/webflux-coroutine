@@ -22,7 +22,7 @@ val groovyVersion="2.4.13"
 val spockVersion="1.1-groovy-2.4"
 val mockitoKotlinVersion="1.5.0"
 val embeddedRedisVersion="0.6"
-val reactorKotlinExVersion="1.0.0.M1"
+val reactorKotlinExVersion="1.0.2.RELEASE"
 
 plugins {
     val kotlinVersion = "1.3.50"
@@ -68,7 +68,9 @@ tasks.named<Jar>("jar") {
 
 repositories {
     maven(url = "http://repo.spring.io/milestone")
+    maven(url = "https://repo.spring.io/release")
     mavenCentral()
+    jcenter()
 }
 
 dependencies {

@@ -11,7 +11,7 @@ class ExampleRouter(
         val exampleHandler: ExampleHandler) {
 
     @Bean(name = ["routerFunction"])
-    fun route() = router {
+    fun route() = coRouter {
         ("/api" and accept(MediaType.APPLICATION_JSON)).nest {
             ("/example").nest {
                 POST("/v1/request", exampleHandler::requestAuth)
